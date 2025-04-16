@@ -7,9 +7,11 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import com.google.gson.Gson
 import com.litiaina.android.sdk.constant.Constants
-import com.litiaina.android.sdk.constant.Constants.Companion.MAX_RECONNECT_ATTEMPTS
-import com.litiaina.android.sdk.constant.Constants.Companion.PING_INTERVAL_MILLIS
-import com.litiaina.android.sdk.constant.Constants.Companion.RECONNECT_DELAY
+import com.litiaina.android.sdk.constant.Constants.MAX_RECONNECT_ATTEMPTS
+import com.litiaina.android.sdk.constant.Constants.PING_INTERVAL_MILLIS
+import com.litiaina.android.sdk.constant.Constants.RECONNECT_DELAY
+import com.litiaina.android.sdk.constant.Constants.UPDATE_FILE_LIST_REAL_TIME
+import com.litiaina.android.sdk.constant.Constants.UPDATE_USER_DATA_REAL_TIME
 import com.litiaina.android.sdk.data.ConnectWebsocketData
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -39,11 +41,8 @@ internal object WebSocketManager {
     private val pingHandler = Handler(Looper.getMainLooper())
     private var pingRunnable: Runnable? = null
 
-    fun key(apiKey: String) {
+    fun init(apiKey: String, uid: String, channel: String) {
         this.apiKey = apiKey
-    }
-
-    fun init(uid: String, channel: String) {
         this.uid = uid
         this.channel = channel
     }
@@ -180,6 +179,11 @@ internal object WebSocketManager {
         pingRunnable?.let {
             pingHandler.removeCallbacks(it)
         }
+    }
+
+    fun refresh() {
+        send(UPDATE_FILE_LIST_REAL_TIME)
+        send(UPDATE_USER_DATA_REAL_TIME)
     }
 
     fun isConnected(): Boolean = connected

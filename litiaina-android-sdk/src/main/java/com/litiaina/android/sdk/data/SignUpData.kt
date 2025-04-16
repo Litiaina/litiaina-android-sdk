@@ -2,7 +2,7 @@ package com.litiaina.android.sdk.data
 
 import com.google.gson.annotations.SerializedName
 
-data class SignUpData(
+internal data class SignUpData(
     val name: String? = null,
     val email: String? = null,
     val password: String? = null,

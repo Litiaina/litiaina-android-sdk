@@ -28,6 +28,11 @@ internal interface UserApiService {
         @Body response: LoginRequest
     ): UserData
 
+    suspend fun checkUserAccount(
+        @Header("X-API-KEY") apiKey: String,
+        @Body response: LoginRequest
+    ): Boolean
+
     @POST("users/login")
     suspend fun login(
         @Header("AUTH-KEY") authKey: String,

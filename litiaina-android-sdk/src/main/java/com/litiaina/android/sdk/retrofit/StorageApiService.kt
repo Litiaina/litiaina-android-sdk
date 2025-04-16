@@ -1,6 +1,6 @@
 package com.litiaina.android.sdk.retrofit
 
-import com.litiaina.android.sdk.data.FilesResponse
+import com.litiaina.android.sdk.data.FileListData
 import okhttp3.MultipartBody
 import okhttp3.ResponseBody
 import retrofit2.Call
@@ -20,7 +20,7 @@ internal interface StorageApiService {
     fun getFilesList(
         @Header("X-API-KEY") apiKey: String,
         @Path(value = "path", encoded = true) path: String
-    ): Call<FilesResponse>
+    ): FileListData
 
     @Multipart
     @POST("files/upload/{path}")
