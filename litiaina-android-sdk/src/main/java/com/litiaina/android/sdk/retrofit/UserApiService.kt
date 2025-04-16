@@ -1,4 +1,4 @@
-package com.litiaina.android.sdk.api
+package com.litiaina.android.sdk.retrofit
 
 import com.google.gson.JsonObject
 import com.litiaina.android.sdk.data.LoginRequest

@@ -1,4 +1,4 @@
-package com.litiaina.android.sdk.api
+package com.litiaina.android.sdk.retrofit
 
 import com.litiaina.android.sdk.constant.Constants
 import okhttp3.OkHttpClient

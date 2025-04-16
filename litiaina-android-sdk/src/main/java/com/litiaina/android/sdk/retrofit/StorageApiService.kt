@@ -1,4 +1,4 @@
-package com.litiaina.android.sdk.api
+package com.litiaina.android.sdk.retrofit
 
 import com.litiaina.android.sdk.data.FilesResponse
 import okhttp3.MultipartBody
