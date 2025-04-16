@@ -15,6 +15,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 object Database {
+    fun updateUserData() {
+        WebSocketManager.send(UPDATE_USER_DATA_REAL_TIME)
+    }
     fun retrieveUserData(
         apiKey: String,
         email: String,
@@ -67,10 +70,10 @@ object Database {
 
     fun modifyUserData(
         apiKey: String,
-        email: String? = null,
+        email: String,
         password: String,
-        name: String? = null,
-        profilePicture: String? = null,
+        newName: String? = null,
+        newProfilePicture: String? = null,
         onResult: (Boolean) -> Unit
     ) {
         CoroutineScope(Dispatchers.IO).launch {
@@ -81,9 +84,9 @@ object Database {
                 )
                 val response = RetrofitInstance.userApi.modifyUser(apiKey,
                     SignUpData(
-                        name = name ?: userData.name,
-                        email = email ?: userData.email,
-                        profilePicture = profilePicture ?: userData.profilePicture,
+                        name = newName ?: userData.name,
+                        email = email,
+                        profilePicture = newProfilePicture ?: userData.profilePicture,
                         password = "",
                         accessLevel = ""
                     )

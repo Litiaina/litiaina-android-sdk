@@ -15,6 +15,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 object Storage {
+    fun updateFileList() {
+        WebSocketManager.send(UPDATE_FILE_LIST_REAL_TIME)
+    }
     fun retrieveFileList(
         apiKey: String,
         email: String,
