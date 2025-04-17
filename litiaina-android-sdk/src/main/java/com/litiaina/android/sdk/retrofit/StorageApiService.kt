@@ -21,7 +21,7 @@ internal interface StorageApiService {
     fun getFilesList(
         @Header("X-API-KEY") apiKey: String,
         @Path(value = "path", encoded = true) path: String
-    ): FileResponse
+    ): Call<FileResponse>
 
     @Multipart
     @POST("files/upload/{path}")

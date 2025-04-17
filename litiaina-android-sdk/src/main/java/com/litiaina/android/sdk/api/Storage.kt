@@ -14,6 +14,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
 
 object Storage {
     fun updateFileList() {
@@ -22,18 +25,29 @@ object Storage {
     fun retrieveFileList(
         apiKey: String,
         email: String,
-        onResult: (FileResponse?) -> Unit
+        onResult: (List<FileDetailData>?) -> Unit
     ) {
         ensureInitialized()
         CoroutineScope(Dispatchers.IO).launch {
-            val fileList = try {
-                RetrofitInstance.storageApi.getFilesList(apiKey, serializeEmailPath(email))
-            } catch (e: Exception) {
-                Log.e("WebSocketDebug", "Error: ${e.localizedMessage}")
-                null
-            }
+            var files: List<FileDetailData>? = null
+            RetrofitInstance.storageApi.getFilesList(apiKey , serializeEmailPath(email)).enqueue(object :
+                Callback<FileResponse> {
+                override fun onResponse(call: Call<FileResponse>, response: Response<FileResponse>) {
+                    if (response.isSuccessful) {
+                        response.body()?.files?.let { filesList ->
+                            files = filesList
+                        }
+                    } else {
+                        Log.e("MainActivity", "Request failed with code: ${response.code()}")
+                    }
+                }
+                override fun onFailure(call: Call<FileResponse>, t: Throwable) {
+                    Log.e("RetrieveFileList", "Request failed", t)
+                }
+            })
+
             withContext(Dispatchers.Main) {
-                onResult(fileList)
+                onResult(files)
             }
         }
     }
@@ -43,7 +57,7 @@ object Storage {
         apiKey: String,
         uid: String,
         email: String,
-        onResult: (FileResponse?) -> Unit
+        onResult: (List<FileDetailData>?) -> Unit
     ) {
         ensureInitialized()
         WebSocketManager.messageLiveData.observe(lifecycleOwner) { message ->
@@ -56,14 +70,25 @@ object Storage {
             }
 
             CoroutineScope(Dispatchers.IO).launch {
-                val fileList = try {
-                    RetrofitInstance.storageApi.getFilesList(apiKey, serializeEmailPath(email))
-                } catch (e: Exception) {
-                    Log.e("WebSocketDebug", "Error: ${e.localizedMessage}")
-                    null
-                }
+                var files: List<FileDetailData>? = null
+                RetrofitInstance.storageApi.getFilesList(apiKey , serializeEmailPath(email)).enqueue(object :
+                    Callback<FileResponse> {
+                    override fun onResponse(call: Call<FileResponse>, response: Response<FileResponse>) {
+                        if (response.isSuccessful) {
+                            response.body()?.files?.let { filesList ->
+                                files = filesList
+                            }
+                        } else {
+                            Log.e("MainActivity", "Request failed with code: ${response.code()}")
+                        }
+                    }
+                    override fun onFailure(call: Call<FileResponse>, t: Throwable) {
+                        Log.e("RetrieveFileList", "Request failed", t)
+                    }
+                })
+
                 withContext(Dispatchers.Main) {
-                    onResult(fileList)
+                    onResult(files)
                 }
             }
         }
