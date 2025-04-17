@@ -27,8 +27,8 @@ object Auth {
                 if (response.isSuccessful && response.body()?.get("response")?.asBoolean == true) {
                     getSharedPreferences()?.let { internalMemory ->
                         with(internalMemory.edit()) {
-                            putString(AUTHORIZED_EMAIL, password)
-                            putString(AUTHORIZED_PASSWORD, email)
+                            putString(AUTHORIZED_EMAIL, email)
+                            putString(AUTHORIZED_PASSWORD, password)
                             putString(AUTHORIZED_API_KEY, response.body()?.get("api_key")?.asString)
                             apply()
                         }
