@@ -3,6 +3,11 @@ package com.litiaina.android.sdk.api
 import android.util.Log
 import androidx.lifecycle.LifecycleOwner
 import com.litiaina.android.sdk.api.LitiainaInstance.ensureInitialized
+import com.litiaina.android.sdk.api.LitiainaInstance.getSharedPreferences
+import com.litiaina.android.sdk.api.LitiainaInstance.getUID
+import com.litiaina.android.sdk.constant.Constants.AUTHORIZED_API_KEY
+import com.litiaina.android.sdk.constant.Constants.AUTHORIZED_EMAIL
+import com.litiaina.android.sdk.constant.Constants.AUTHORIZED_PASSWORD
 import com.litiaina.android.sdk.constant.Constants.UPDATE_USER_DATA_REAL_TIME
 import com.litiaina.android.sdk.data.LoginRequest
 import com.litiaina.android.sdk.data.SignUpData
@@ -18,16 +23,17 @@ object Database {
     fun updateUserData() {
         WebSocketManager.send(UPDATE_USER_DATA_REAL_TIME)
     }
-    fun retrieveUserData(
-        apiKey: String,
-        email: String,
-        password: String,
-        onResult: (UserData?) -> Unit
-    ) {
+    fun retrieveCurrentUserData(onResult: (UserData?) -> Unit) {
         ensureInitialized()
         CoroutineScope(Dispatchers.IO).launch {
             val userData: UserData? = try {
-                RetrofitInstance.userApi.getUserAccount(apiKey, LoginRequest(email, password))
+                RetrofitInstance.userApi.getUserAccount(
+                    getSharedPreferences()!!.getString(AUTHORIZED_API_KEY,"").toString(),
+                    LoginRequest(
+                        getSharedPreferences()!!.getString(AUTHORIZED_EMAIL,"").toString(),
+                        getSharedPreferences()!!.getString(AUTHORIZED_PASSWORD,"").toString()
+                    )
+                )
             } catch (e: Exception) {
                 null
             }
@@ -37,12 +43,8 @@ object Database {
         }
     }
 
-    fun retrieveUserDataRealtime(
+    fun retrieveCurrentUserDataRealtime(
         lifecycleOwner: LifecycleOwner,
-        apiKey: String,
-        uid: String,
-        email: String,
-        password: String,
         onResult: (UserData?) -> Unit
     ) {
         ensureInitialized()
@@ -51,13 +53,19 @@ object Database {
                 return@observe
             }
 
-            if (message.contains("$uid: $UPDATE_USER_DATA_REAL_TIME")) {
+            if (message.contains("${getUID()}: $UPDATE_USER_DATA_REAL_TIME")) {
                 return@observe
             }
 
             CoroutineScope(Dispatchers.IO).launch {
                 val userData: UserData? = try {
-                    RetrofitInstance.userApi.getUserAccount(apiKey, LoginRequest(email, password))
+                    RetrofitInstance.userApi.getUserAccount(
+                        getSharedPreferences()!!.getString(AUTHORIZED_API_KEY,"").toString(),
+                        LoginRequest(
+                            getSharedPreferences()!!.getString(AUTHORIZED_EMAIL,"").toString(),
+                            getSharedPreferences()!!.getString(AUTHORIZED_PASSWORD,"").toString()
+                        )
+                    )
                 } catch (e: Exception) {
                     null
                 }
@@ -68,10 +76,7 @@ object Database {
         }
     }
 
-    fun modifyUserData(
-        apiKey: String,
-        email: String,
-        password: String,
+    fun modifyCurrentUserData(
         newName: String? = null,
         newProfilePicture: String? = null,
         onResult: (Boolean) -> Unit
@@ -79,13 +84,17 @@ object Database {
         CoroutineScope(Dispatchers.IO).launch {
             val modified = try {
                 val userData = RetrofitInstance.userApi.getUserAccount(
-                    apiKey,
-                    LoginRequest(email, password)
+                    getSharedPreferences()!!.getString(AUTHORIZED_API_KEY,"").toString(),
+                    LoginRequest(
+                        getSharedPreferences()!!.getString(AUTHORIZED_EMAIL,"").toString(),
+                        getSharedPreferences()!!.getString(AUTHORIZED_PASSWORD,"").toString()
+                    )
                 )
-                val response = RetrofitInstance.userApi.modifyUser(apiKey,
+                val response = RetrofitInstance.userApi.modifyUser(
+                    getSharedPreferences()!!.getString(AUTHORIZED_API_KEY,"").toString(),
                     SignUpData(
                         name = newName ?: userData.name,
-                        email = email,
+                        email = getSharedPreferences()!!.getString(AUTHORIZED_EMAIL,"").toString(),
                         profilePicture = newProfilePicture ?: userData.profilePicture,
                         password = "",
                         accessLevel = ""

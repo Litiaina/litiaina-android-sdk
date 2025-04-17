@@ -1,23 +1,40 @@
 package com.litiaina.android.sdk.api
 
+import android.content.Context
+import android.content.SharedPreferences
+import com.litiaina.android.sdk.constant.Constants.SHARE_PREFERENCES_LOCAL
 import com.litiaina.android.sdk.websocket.WebSocketManager
+import java.util.UUID
 
 object LitiainaInstance {
+    private lateinit var uid: UUID
+    private var internalSharedPreferences: SharedPreferences? = null
     private var initialized = false
 
-    fun init(
-        apiKey: String,
-        uid: String,
-        email: String
-    ) {
-        WebSocketManager.close()
-        WebSocketManager.init(apiKey, uid, email)
-        WebSocketManager.connect()
-        WebSocketManager.refresh()
+    fun init(appContext: Context) {
+        uid = UUID.randomUUID()
+        internalSharedPreferences = appContext.applicationContext.getSharedPreferences(SHARE_PREFERENCES_LOCAL, Context.MODE_PRIVATE)
         initialized = true
     }
 
-    fun close(){
+    internal fun getSharedPreferences(): SharedPreferences? {
+        ensureInitialized()
+        return internalSharedPreferences
+    }
+
+    internal fun getUID(): String {
+        ensureInitialized()
+        return uid.toString()
+    }
+
+    fun destroy(){
+        with(internalSharedPreferences!!.edit()) {
+            remove("email")
+            remove("password")
+            remove("api_key")
+            apply()
+        }
+        internalSharedPreferences = null
         WebSocketManager.close()
     }
 

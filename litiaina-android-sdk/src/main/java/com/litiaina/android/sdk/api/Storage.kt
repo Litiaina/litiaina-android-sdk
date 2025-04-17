@@ -3,11 +3,17 @@ package com.litiaina.android.sdk.api
 import android.util.Log
 import androidx.lifecycle.LifecycleOwner
 import com.litiaina.android.sdk.api.LitiainaInstance.ensureInitialized
+import com.litiaina.android.sdk.api.LitiainaInstance.getSharedPreferences
+import com.litiaina.android.sdk.api.LitiainaInstance.getUID
+import com.litiaina.android.sdk.constant.Constants.AUTHORIZED_API_KEY
+import com.litiaina.android.sdk.constant.Constants.AUTHORIZED_EMAIL
+import com.litiaina.android.sdk.constant.Constants.AUTHORIZED_PASSWORD
 import com.litiaina.android.sdk.constant.Constants.UPDATE_FILE_LIST_REAL_TIME
 import com.litiaina.android.sdk.data.FileDetailData
 import com.litiaina.android.sdk.data.FileResponse
 import com.litiaina.android.sdk.retrofit.RetrofitInstance
 import com.litiaina.android.sdk.util.Format.Companion.serializeEmailFilePath
+import com.litiaina.android.sdk.util.Format.Companion.serializeEmailPath
 import com.litiaina.android.sdk.websocket.WebSocketManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -25,7 +31,7 @@ object Storage {
     }
 
     private suspend fun getFilesListAsync(apiKey: String, email: String): List<FileDetailData>? = suspendCoroutine { continuation ->
-        RetrofitInstance.storageApi.getFilesList(apiKey = apiKey, path = "${email}-files")
+        RetrofitInstance.storageApi.getFilesList(apiKey = apiKey, path = serializeEmailPath(email))
             .enqueue(object : Callback<FileResponse> {
                 override fun onResponse(call: Call<FileResponse>, response: Response<FileResponse>) {
                     if (response.isSuccessful) {
@@ -44,14 +50,19 @@ object Storage {
     }
 
     fun retrieveFileList(
-        apiKey: String,
-        email: String,
         onResult: (List<FileDetailData>?) -> Unit
     ) {
         ensureInitialized()
         CoroutineScope(Dispatchers.IO).launch {
             CoroutineScope(Dispatchers.IO).launch {
-                val files = getFilesListAsync(apiKey, email)
+                val files: List<FileDetailData>? = try {
+                    getFilesListAsync(
+                        getSharedPreferences()!!.getString(AUTHORIZED_API_KEY,"").toString(),
+                        getSharedPreferences()!!.getString(AUTHORIZED_PASSWORD,"").toString()
+                    )
+                } catch (e: Exception) {
+                    null
+                }
                 withContext(Dispatchers.Main) {
                     onResult(files)
                 }
@@ -61,9 +72,6 @@ object Storage {
 
     fun retrieveFileListRealtime(
         lifecycleOwner: LifecycleOwner,
-        apiKey: String,
-        uid: String,
-        email: String,
         onResult: (List<FileDetailData>?) -> Unit
     ) {
         ensureInitialized()
@@ -72,12 +80,19 @@ object Storage {
                 return@observe
             }
 
-            if (message.contains("$uid: $UPDATE_FILE_LIST_REAL_TIME")) {
+            if (message.contains("${getUID()}: $UPDATE_FILE_LIST_REAL_TIME")) {
                 return@observe
             }
 
             CoroutineScope(Dispatchers.IO).launch {
-                val files = getFilesListAsync(apiKey, email)
+                val files: List<FileDetailData>? = try {
+                    getFilesListAsync(
+                        getSharedPreferences()!!.getString(AUTHORIZED_API_KEY,"").toString(),
+                        getSharedPreferences()!!.getString(AUTHORIZED_PASSWORD,"").toString()
+                    )
+                } catch (e: Exception) {
+                    null
+                }
                 withContext(Dispatchers.Main) {
                     onResult(files)
                 }
@@ -86,15 +101,19 @@ object Storage {
     }
 
     fun deleteFile(
-        apiKey: String,
-        email: String,
         fileName: String,
         onResult: (Boolean) -> Unit
     ) {
         ensureInitialized()
         CoroutineScope(Dispatchers.IO).launch {
             val operationSuccess = try {
-                val response = RetrofitInstance.storageApi.deleteFile(apiKey, serializeEmailFilePath(email,fileName)).execute()
+                val response = RetrofitInstance.storageApi.deleteFile(
+                    getSharedPreferences()!!.getString(AUTHORIZED_API_KEY,"").toString(),
+                    serializeEmailFilePath(
+                        getSharedPreferences()!!.getString(AUTHORIZED_EMAIL,"").toString(),
+                        fileName
+                    )
+                ).execute()
                 if (response.isSuccessful) {
                     WebSocketManager.send(UPDATE_FILE_LIST_REAL_TIME)
                     true
