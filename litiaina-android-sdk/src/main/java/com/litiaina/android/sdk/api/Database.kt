@@ -23,7 +23,7 @@ object Database {
     fun updateUserData() {
         WebSocketManager.send(UPDATE_USER_DATA_REAL_TIME)
     }
-    fun retrieveCurrentUserData(onResult: (UserData?) -> Unit) {
+    fun retrieveUserData(onResult: (UserData?) -> Unit) {
         ensureInitialized()
         CoroutineScope(Dispatchers.IO).launch {
             val userData: UserData? = try {
@@ -43,7 +43,7 @@ object Database {
         }
     }
 
-    fun retrieveCurrentUserDataRealtime(
+    fun retrieveUserDataRealtime(
         lifecycleOwner: LifecycleOwner,
         onResult: (UserData?) -> Unit
     ) {
@@ -76,7 +76,7 @@ object Database {
         }
     }
 
-    fun modifyCurrentUserData(
+    fun modifyUserData(
         newName: String? = null,
         newProfilePicture: String? = null,
         onResult: (Boolean) -> Unit

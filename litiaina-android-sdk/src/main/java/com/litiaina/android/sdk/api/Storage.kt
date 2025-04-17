@@ -7,7 +7,6 @@ import com.litiaina.android.sdk.api.LitiainaInstance.getSharedPreferences
 import com.litiaina.android.sdk.api.LitiainaInstance.getUID
 import com.litiaina.android.sdk.constant.Constants.AUTHORIZED_API_KEY
 import com.litiaina.android.sdk.constant.Constants.AUTHORIZED_EMAIL
-import com.litiaina.android.sdk.constant.Constants.AUTHORIZED_PASSWORD
 import com.litiaina.android.sdk.constant.Constants.UPDATE_FILE_LIST_REAL_TIME
 import com.litiaina.android.sdk.data.FileDetailData
 import com.litiaina.android.sdk.data.FileResponse
@@ -58,7 +57,7 @@ object Storage {
                 val files: List<FileDetailData>? = try {
                     getFilesListAsync(
                         getSharedPreferences()!!.getString(AUTHORIZED_API_KEY,"").toString(),
-                        getSharedPreferences()!!.getString(AUTHORIZED_PASSWORD,"").toString()
+                        getSharedPreferences()!!.getString(AUTHORIZED_EMAIL,"").toString()
                     )
                 } catch (e: Exception) {
                     null
@@ -88,7 +87,7 @@ object Storage {
                 val files: List<FileDetailData>? = try {
                     getFilesListAsync(
                         getSharedPreferences()!!.getString(AUTHORIZED_API_KEY,"").toString(),
-                        getSharedPreferences()!!.getString(AUTHORIZED_PASSWORD,"").toString()
+                        getSharedPreferences()!!.getString(AUTHORIZED_EMAIL,"").toString()
                     )
                 } catch (e: Exception) {
                     null
