@@ -8,7 +8,6 @@ import com.litiaina.android.sdk.data.FileDetailData
 import com.litiaina.android.sdk.data.FileResponse
 import com.litiaina.android.sdk.retrofit.RetrofitInstance
 import com.litiaina.android.sdk.util.Format.Companion.serializeEmailFilePath
-import com.litiaina.android.sdk.util.Format.Companion.serializeEmailPath
 import com.litiaina.android.sdk.websocket.WebSocketManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -17,11 +16,33 @@ import kotlinx.coroutines.withContext
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
+import kotlin.coroutines.resume
+import kotlin.coroutines.suspendCoroutine
 
 object Storage {
     fun updateFileList() {
         WebSocketManager.send(UPDATE_FILE_LIST_REAL_TIME)
     }
+
+    private suspend fun getFilesListAsync(apiKey: String, email: String): List<FileDetailData>? = suspendCoroutine { continuation ->
+        RetrofitInstance.storageApi.getFilesList(apiKey = apiKey, path = "${email}-files")
+            .enqueue(object : Callback<FileResponse> {
+                override fun onResponse(call: Call<FileResponse>, response: Response<FileResponse>) {
+                    if (response.isSuccessful) {
+                        continuation.resume(response.body()?.files)
+                    } else {
+                        Log.e("MainActivity", "Request failed with code: ${response.code()}")
+                        continuation.resume(null)
+                    }
+                }
+
+                override fun onFailure(call: Call<FileResponse>, t: Throwable) {
+                    Log.e("RetrieveFileList", "Request failed", t)
+                    continuation.resume(null)
+                }
+            })
+    }
+
     fun retrieveFileList(
         apiKey: String,
         email: String,
@@ -29,25 +50,11 @@ object Storage {
     ) {
         ensureInitialized()
         CoroutineScope(Dispatchers.IO).launch {
-            var files: List<FileDetailData>? = null
-            RetrofitInstance.storageApi.getFilesList(apiKey , serializeEmailPath(email)).enqueue(object :
-                Callback<FileResponse> {
-                override fun onResponse(call: Call<FileResponse>, response: Response<FileResponse>) {
-                    if (response.isSuccessful) {
-                        response.body()?.files?.let { filesList ->
-                            files = filesList
-                        }
-                    } else {
-                        Log.e("MainActivity", "Request failed with code: ${response.code()}")
-                    }
+            CoroutineScope(Dispatchers.IO).launch {
+                val files = getFilesListAsync(apiKey, email)
+                withContext(Dispatchers.Main) {
+                    onResult(files)
                 }
-                override fun onFailure(call: Call<FileResponse>, t: Throwable) {
-                    Log.e("RetrieveFileList", "Request failed", t)
-                }
-            })
-
-            withContext(Dispatchers.Main) {
-                onResult(files)
             }
         }
     }
@@ -70,23 +77,7 @@ object Storage {
             }
 
             CoroutineScope(Dispatchers.IO).launch {
-                var files: List<FileDetailData>? = null
-                RetrofitInstance.storageApi.getFilesList(apiKey , serializeEmailPath(email)).enqueue(object :
-                    Callback<FileResponse> {
-                    override fun onResponse(call: Call<FileResponse>, response: Response<FileResponse>) {
-                        if (response.isSuccessful) {
-                            response.body()?.files?.let { filesList ->
-                                files = filesList
-                            }
-                        } else {
-                            Log.e("MainActivity", "Request failed with code: ${response.code()}")
-                        }
-                    }
-                    override fun onFailure(call: Call<FileResponse>, t: Throwable) {
-                        Log.e("RetrieveFileList", "Request failed", t)
-                    }
-                })
-
+                val files = getFilesListAsync(apiKey, email)
                 withContext(Dispatchers.Main) {
                     onResult(files)
                 }
