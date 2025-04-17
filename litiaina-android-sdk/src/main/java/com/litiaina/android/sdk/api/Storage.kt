@@ -4,7 +4,8 @@ import android.util.Log
 import androidx.lifecycle.LifecycleOwner
 import com.litiaina.android.sdk.api.LitiainaInstance.ensureInitialized
 import com.litiaina.android.sdk.constant.Constants.UPDATE_FILE_LIST_REAL_TIME
-import com.litiaina.android.sdk.data.FileListData
+import com.litiaina.android.sdk.data.FileDetailData
+import com.litiaina.android.sdk.data.FileResponse
 import com.litiaina.android.sdk.retrofit.RetrofitInstance
 import com.litiaina.android.sdk.util.Format.Companion.serializeEmailFilePath
 import com.litiaina.android.sdk.util.Format.Companion.serializeEmailPath
@@ -21,13 +22,14 @@ object Storage {
     fun retrieveFileList(
         apiKey: String,
         email: String,
-        onResult: (FileListData?) -> Unit
+        onResult: (FileResponse?) -> Unit
     ) {
         ensureInitialized()
         CoroutineScope(Dispatchers.IO).launch {
-            val fileList: FileListData? = try {
+            val fileList = try {
                 RetrofitInstance.storageApi.getFilesList(apiKey, serializeEmailPath(email))
             } catch (e: Exception) {
+                Log.e("WebSocketDebug", "Error: ${e.localizedMessage}")
                 null
             }
             withContext(Dispatchers.Main) {
@@ -41,7 +43,7 @@ object Storage {
         apiKey: String,
         uid: String,
         email: String,
-        onResult: (FileListData?) -> Unit
+        onResult: (FileResponse?) -> Unit
     ) {
         ensureInitialized()
         WebSocketManager.messageLiveData.observe(lifecycleOwner) { message ->
@@ -54,9 +56,10 @@ object Storage {
             }
 
             CoroutineScope(Dispatchers.IO).launch {
-                val fileList: FileListData? = try {
+                val fileList = try {
                     RetrofitInstance.storageApi.getFilesList(apiKey, serializeEmailPath(email))
                 } catch (e: Exception) {
+                    Log.e("WebSocketDebug", "Error: ${e.localizedMessage}")
                     null
                 }
                 withContext(Dispatchers.Main) {
