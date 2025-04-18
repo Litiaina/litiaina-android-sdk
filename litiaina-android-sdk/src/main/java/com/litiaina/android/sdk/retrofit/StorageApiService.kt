@@ -1,6 +1,5 @@
 package com.litiaina.android.sdk.retrofit
 
-import com.litiaina.android.sdk.data.FileDetailData
 import com.litiaina.android.sdk.data.FileResponse
 import okhttp3.MultipartBody
 import okhttp3.ResponseBody
