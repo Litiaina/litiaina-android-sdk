@@ -9,7 +9,6 @@ import com.litiaina.android.sdk.constant.Constants.AUTHORIZED_API_KEY
 import com.litiaina.android.sdk.constant.Constants.AUTHORIZED_EMAIL
 import com.litiaina.android.sdk.constant.Constants.UPDATE_FILE_LIST_REAL_TIME
 import com.litiaina.android.sdk.data.FileDetailData
-import com.litiaina.android.sdk.data.FileResponse
 import com.litiaina.android.sdk.retrofit.RetrofitInstance
 import com.litiaina.android.sdk.util.Format.Companion.serializeEmailFilePath
 import com.litiaina.android.sdk.util.Format.Companion.serializeEmailPath
@@ -18,34 +17,24 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import retrofit2.Call
-import retrofit2.Callback
-import retrofit2.Response
-import kotlin.coroutines.resume
-import kotlin.coroutines.suspendCoroutine
 
 object Storage {
+
+    @Volatile
+    private var isFetching = false
+
     fun updateFileList() {
         WebSocketManager.send(UPDATE_FILE_LIST_REAL_TIME)
     }
 
-    private suspend fun getFilesListAsync(apiKey: String, email: String): List<FileDetailData>? = suspendCoroutine { continuation ->
-        RetrofitInstance.storageApi.getFilesList(apiKey = apiKey, path = serializeEmailPath(email))
-            .enqueue(object : Callback<FileResponse> {
-                override fun onResponse(call: Call<FileResponse>, response: Response<FileResponse>) {
-                    if (response.isSuccessful) {
-                        continuation.resume(response.body()?.files)
-                    } else {
-                        Log.e("MainActivity", "Request failed with code: ${response.code()}")
-                        continuation.resume(null)
-                    }
-                }
-
-                override fun onFailure(call: Call<FileResponse>, t: Throwable) {
-                    Log.e("RetrieveFileList", "Request failed", t)
-                    continuation.resume(null)
-                }
-            })
+    private suspend fun getFilesListAsync(apiKey: String, email: String): List<FileDetailData>? {
+        return try {
+            val response = RetrofitInstance.storageApi.getFilesList(apiKey, serializeEmailPath(email))
+            response.files
+        } catch (e: Exception) {
+            Log.e("getFilesListAsync", "Error fetching file list", e)
+            null
+        }
     }
 
     fun retrieveFileList(
@@ -53,18 +42,18 @@ object Storage {
     ) {
         ensureInitialized()
         CoroutineScope(Dispatchers.IO).launch {
-            CoroutineScope(Dispatchers.IO).launch {
-                val files: List<FileDetailData>? = try {
-                    getFilesListAsync(
-                        getSharedPreferences()!!.getString(AUTHORIZED_API_KEY,"").toString(),
-                        getSharedPreferences()!!.getString(AUTHORIZED_EMAIL,"").toString()
-                    )
-                } catch (e: Exception) {
-                    null
-                }
-                withContext(Dispatchers.Main) {
-                    onResult(files)
-                }
+            val files = try {
+                getFilesListAsync(
+                    getSharedPreferences()?.getString(AUTHORIZED_API_KEY, "").orEmpty(),
+                    getSharedPreferences()?.getString(AUTHORIZED_EMAIL, "").orEmpty()
+                )
+            } catch (e: Exception) {
+                Log.e("retrieveFileList", "Error retrieving files", e)
+                null
+            }
+
+            withContext(Dispatchers.Main) {
+                onResult(files)
             }
         }
     }
@@ -74,6 +63,7 @@ object Storage {
         onResult: (List<FileDetailData>?) -> Unit
     ) {
         ensureInitialized()
+
         WebSocketManager.messageLiveData.observe(lifecycleOwner) { message ->
             if (!(message.contains(UPDATE_FILE_LIST_REAL_TIME))) {
                 return@observe
@@ -83,16 +73,22 @@ object Storage {
                 return@observe
             }
 
+            if (isFetching) return@observe
+
+            isFetching = true
             CoroutineScope(Dispatchers.IO).launch {
-                val files: List<FileDetailData>? = try {
+                val files = try {
                     getFilesListAsync(
-                        getSharedPreferences()!!.getString(AUTHORIZED_API_KEY,"").toString(),
-                        getSharedPreferences()!!.getString(AUTHORIZED_EMAIL,"").toString()
+                        getSharedPreferences()?.getString(AUTHORIZED_API_KEY, "").orEmpty(),
+                        getSharedPreferences()?.getString(AUTHORIZED_EMAIL, "").orEmpty()
                     )
                 } catch (e: Exception) {
+                    Log.e("retrieveFileList", "Exception during file fetch", e)
                     null
                 }
+
                 withContext(Dispatchers.Main) {
+                    isFetching = false
                     onResult(files)
                 }
             }
@@ -126,6 +122,34 @@ object Storage {
 
             withContext(Dispatchers.Main) {
                 onResult(operationSuccess)
+            }
+        }
+    }
+
+    fun renameFile(
+        oldFileName: String,
+        newFileName: String,
+        onResult: (Boolean) -> Unit
+    ) {
+        CoroutineScope(Dispatchers.IO).launch {
+            val modified = try {
+                val response = RetrofitInstance.storageApi.renameFile(
+                    getSharedPreferences()!!.getString(AUTHORIZED_API_KEY,"").toString(),
+                    newFileName = newFileName,
+                    serializeEmailFilePath(getSharedPreferences()!!.getString(AUTHORIZED_EMAIL,"").toString(), oldFileName)
+                ).execute()
+                if (response.isSuccessful) {
+                    WebSocketManager.send(UPDATE_FILE_LIST_REAL_TIME)
+                    true
+                } else
+                    false
+            } catch (e: Exception) {
+                Log.e("ModifyUserData", "Exception occurred: ${e.message}", e)
+                false
+            }
+
+            withContext(Dispatchers.Main) {
+                onResult(modified)
             }
         }
     }

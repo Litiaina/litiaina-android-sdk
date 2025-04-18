@@ -18,10 +18,10 @@ import retrofit2.http.Streaming
 internal interface StorageApiService {
 
     @GET("files/{path}")
-    fun getFilesList(
+    suspend fun getFilesList(
         @Header("X-API-KEY") apiKey: String,
         @Path(value = "path", encoded = true) path: String
-    ): Call<FileResponse>
+    ): FileResponse
 
     @Multipart
     @POST("files/upload/{path}")
