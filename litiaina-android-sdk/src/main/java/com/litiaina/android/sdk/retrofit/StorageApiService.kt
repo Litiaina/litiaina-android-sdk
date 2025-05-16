@@ -10,58 +10,90 @@ import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.Multipart
 import retrofit2.http.POST
+import retrofit2.http.PUT
 import retrofit2.http.Part
 import retrofit2.http.Path
+import retrofit2.http.Query
 import retrofit2.http.Streaming
 
 internal interface StorageApiService {
 
-    @GET("files/{path}")
+    @GET("ping")
+    suspend fun pingStorageServer(): Response<ResponseBody>
+
+    @GET("dir/{path}")
     suspend fun getFilesList(
-        @Header("X-API-KEY") apiKey: String,
-        @Path(value = "path", encoded = true) path: String
+        @Header("authorization") apiKey: String,
+        @Header("uid") uid: String,
+        @Path(value = "path", encoded = true) path: String? = null
     ): FileResponse
 
     @Multipart
-    @POST("files/upload/{path}")
+    @POST("dir/file/upload/{path}")
     suspend fun uploadFile(
-        @Header("X-API-KEY") apiKey: String,
-        @Path("path") path: String,
+        @Header("authorization") token: String,
+        @Header("uid") uid: String,
+        @Path(value = "path", encoded = true) path: String? = null,
         @Part file: MultipartBody.Part
     ): Response<ResponseBody>
 
     @Multipart
-    @POST("files/upload/v2/{path}")
+    @POST("dir/file/upload/v2/{path}")
     suspend fun uploadFileV2(
-        @Header("X-API-KEY") apiKey: String,
-        @Path("path") path: String,
+        @Header("authorization") token: String,
+        @Header("uid") uid: String,
+        @Path(value = "path", encoded = true) path: String? = null,
+        @Query("file_id") fileId: String,
+        @Query("chunk_index") chunkIndex: Int,
+        @Query("total_chunks") totalChunks: Int,
+        @Query("original_filename") originalFilename: String?,
+        @Query("mime_type") mimeType: String?,
         @Part file: MultipartBody.Part
     ): Response<ResponseBody>
 
-    @POST("files/rename_file/{new_file_name}/{path}")
-    fun renameFile(
-        @Header("X-API-KEY") apiKey: String,
-        @Path("new_file_name") newFileName: String,
-        @Path(value = "path", encoded = true) path: String
+    @POST("dir/create/{path}")
+    fun finalizeDirectory(
+        @Header("authorization") token: String,
+        @Header("uid") uid: String,
+        @Path(value = "path", encoded = true) path: String? = null,
     ): Call<ResponseBody>
 
-    @GET("files/download/{path}")
+    @PUT("dir/file/rename/{path}")
+    fun renameFile(
+        @Header("authorization") token: String,
+        @Header("uid") uid: String,
+        @Path(value = "path", encoded = true) path: String? = null,
+        @Query("file_to_modify") fileToModify: String,
+        @Query("new_file_name") newFileName: String,
+    ): Call<ResponseBody>
+
+    @DELETE("dir/file/delete/{path}")
+    fun deleteFile(
+        @Header("authorization") token: String,
+        @Header("uid") uid: String,
+        @Path(value = "path", encoded = true) path: String? = null,
+        @Query("file_to_delete") fileToDelete: String,
+    ): Call<ResponseBody>
+
+    @GET("dir/file/download/{path}")
     @Streaming
     fun downloadFile(
-        @Header("X-API-KEY") apiKey: String,
+        @Header("uid") uid: String,
         @Path(value = "path", encoded = true) path: String
     ): Call<ResponseBody>
 
-    @POST("files/create_directory/{path}")
+    @POST("dir/create/{path}")
     fun createDirectory(
-        @Header("X-API-KEY") apiKey: String,
-        @Path(value = "path", encoded = true) path: String
+        @Header("authorization") token: String,
+        @Header("uid") uid: String,
+        @Path(value = "path", encoded = true) path: String,
     ): Call<ResponseBody>
 
-    @DELETE("files/delete_file/{path}")
-    fun deleteFile(
-        @Header("X-API-KEY") apiKey: String,
-        @Path(value = "path", encoded = true) path: String
+    @DELETE("dir/delete/{path}")
+    fun deleteDirectory(
+        @Header("authorization") token: String,
+        @Header("uid") uid: String,
+        @Path(value = "path", encoded = true) path: String,
     ): Call<ResponseBody>
 
 }

@@ -5,13 +5,12 @@ import androidx.lifecycle.LifecycleOwner
 import com.litiaina.android.sdk.api.LitiainaInstance.ensureInitialized
 import com.litiaina.android.sdk.api.LitiainaInstance.getSharedPreferences
 import com.litiaina.android.sdk.api.LitiainaInstance.getUID
-import com.litiaina.android.sdk.constant.Constants.AUTHORIZED_API_KEY
+import com.litiaina.android.sdk.constant.Constants.AUTHORIZED_TOKEN
 import com.litiaina.android.sdk.constant.Constants.AUTHORIZED_EMAIL
+import com.litiaina.android.sdk.constant.Constants.AUTHORIZED_UID
 import com.litiaina.android.sdk.constant.Constants.UPDATE_FILE_LIST_REAL_TIME
 import com.litiaina.android.sdk.data.FileDetailData
 import com.litiaina.android.sdk.retrofit.RetrofitInstance
-import com.litiaina.android.sdk.util.Format.Companion.serializeEmailFilePath
-import com.litiaina.android.sdk.util.Format.Companion.serializeEmailPath
 import com.litiaina.android.sdk.websocket.WebSocketManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -19,7 +18,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 object Storage {
-
     @Volatile
     private var isFetching = false
 
@@ -27,25 +25,36 @@ object Storage {
         WebSocketManager.send(UPDATE_FILE_LIST_REAL_TIME)
     }
 
-    private suspend fun getFilesListAsync(apiKey: String, email: String): List<FileDetailData>? {
+    private suspend fun getFilesListAsync(
+        apiKey: String,
+        uid: String,
+        path: String? = null
+    ): List<FileDetailData>? {
         return try {
-            val response = RetrofitInstance.storageApi.getFilesList(apiKey, serializeEmailPath(email))
-            response.files
+            return RetrofitInstance.storageApi.getFilesList(
+                apiKey = apiKey,
+                uid = uid,
+                path = path ?: ""
+            ).files.ifEmpty {
+                listOf()
+            }
         } catch (e: Exception) {
             Log.e("getFilesListAsync", "Error fetching file list", e)
-            null
+            listOf()
         }
     }
 
     fun retrieveFileList(
+        path: String? = null,
         onResult: (List<FileDetailData>?) -> Unit
     ) {
         ensureInitialized()
         CoroutineScope(Dispatchers.IO).launch {
             val files = try {
                 getFilesListAsync(
-                    getSharedPreferences()?.getString(AUTHORIZED_API_KEY, "").orEmpty(),
-                    getSharedPreferences()?.getString(AUTHORIZED_EMAIL, "").orEmpty()
+                    apiKey = "Bearer ${getSharedPreferences()!!.getString(AUTHORIZED_TOKEN,"").toString()}",
+                    uid = getSharedPreferences()?.getString(AUTHORIZED_UID, "").orEmpty(),
+                    path = path ?: "",
                 )
             } catch (e: Exception) {
                 Log.e("retrieveFileList", "Error retrieving files", e)
@@ -59,6 +68,7 @@ object Storage {
     }
 
     fun retrieveFileListRealtime(
+        path: String? = null,
         lifecycleOwner: LifecycleOwner,
         onResult: (List<FileDetailData>?) -> Unit
     ) {
@@ -79,8 +89,9 @@ object Storage {
             CoroutineScope(Dispatchers.IO).launch {
                 val files = try {
                     getFilesListAsync(
-                        getSharedPreferences()?.getString(AUTHORIZED_API_KEY, "").orEmpty(),
-                        getSharedPreferences()?.getString(AUTHORIZED_EMAIL, "").orEmpty()
+                        apiKey = "Bearer ${getSharedPreferences()!!.getString(AUTHORIZED_TOKEN,"").toString()}",
+                        uid = getSharedPreferences()?.getString(AUTHORIZED_UID, "").orEmpty(),
+                        path = path ?: ""
                     )
                 } catch (e: Exception) {
                     Log.e("retrieveFileList", "Exception during file fetch", e)
@@ -96,6 +107,7 @@ object Storage {
     }
 
     fun deleteFile(
+        path: String? = null,
         fileName: String,
         onResult: (Boolean) -> Unit
     ) {
@@ -103,11 +115,10 @@ object Storage {
         CoroutineScope(Dispatchers.IO).launch {
             val operationSuccess = try {
                 val response = RetrofitInstance.storageApi.deleteFile(
-                    getSharedPreferences()!!.getString(AUTHORIZED_API_KEY,"").toString(),
-                    serializeEmailFilePath(
-                        getSharedPreferences()!!.getString(AUTHORIZED_EMAIL,"").toString(),
-                        fileName
-                    )
+                    token = "Bearer ${getSharedPreferences()!!.getString(AUTHORIZED_TOKEN,"").toString()}",
+                    uid = getSharedPreferences()!!.getString(AUTHORIZED_UID, "").toString(),
+                    path = path ?: "",
+                    fileToDelete = fileName
                 ).execute()
                 if (response.isSuccessful) {
                     WebSocketManager.send(UPDATE_FILE_LIST_REAL_TIME)
@@ -127,6 +138,7 @@ object Storage {
     }
 
     fun renameFile(
+        path: String? = null,
         oldFileName: String,
         newFileName: String,
         onResult: (Boolean) -> Unit
@@ -134,9 +146,11 @@ object Storage {
         CoroutineScope(Dispatchers.IO).launch {
             val modified = try {
                 val response = RetrofitInstance.storageApi.renameFile(
-                    getSharedPreferences()!!.getString(AUTHORIZED_API_KEY,"").toString(),
+                    token = "Bearer ${getSharedPreferences()!!.getString(AUTHORIZED_TOKEN,"").toString()}",
+                    uid = getSharedPreferences()!!.getString(AUTHORIZED_EMAIL,"").toString(),
+                    path = path ?: "",
+                    fileToModify = oldFileName,
                     newFileName = newFileName,
-                    serializeEmailFilePath(getSharedPreferences()!!.getString(AUTHORIZED_EMAIL,"").toString(), oldFileName)
                 ).execute()
                 if (response.isSuccessful) {
                     WebSocketManager.send(UPDATE_FILE_LIST_REAL_TIME)

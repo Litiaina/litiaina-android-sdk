@@ -18,6 +18,14 @@ internal object RetrofitInstance {
         .addInterceptor(loggingInterceptor)
         .build()
 
+    private val retrofitAuthApi by lazy {
+        Retrofit.Builder()
+            .baseUrl(Constants.SERVER_URL)
+            .client(client)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+    }
+
     private val retrofitUserApi by lazy {
         Retrofit.Builder()
             .baseUrl(Constants.SERVER_URL)
@@ -32,6 +40,10 @@ internal object RetrofitInstance {
             .client(client)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
+    }
+
+    val authApi: AuthApiService by lazy {
+        retrofitAuthApi.create(AuthApiService::class.java)
     }
 
     val userApi: UserApiService by lazy {

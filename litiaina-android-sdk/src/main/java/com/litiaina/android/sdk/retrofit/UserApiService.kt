@@ -18,76 +18,43 @@ import retrofit2.http.Path
 
 internal interface UserApiService {
 
-    @GET("users")
-    fun getUsers(
-        @Header("X-API-KEY") apiKey: String,
-    ): Call<List<UserData>>
-    @POST("users/account")
-    suspend fun getUserAccount(
-        @Header("X-API-KEY") apiKey: String,
-        @Body response: LoginRequest
-    ): UserData
-
-    suspend fun checkUserAccount(
-        @Header("X-API-KEY") apiKey: String,
-        @Body response: LoginRequest
-    ): Boolean
-
-    @POST("users/login")
-    suspend fun login(
-        @Header("AUTH-KEY") authKey: String,
-        @Body request: LoginRequest
-    ): Response<JsonObject>
-
-    @POST("users/create_user")
-    suspend fun createUser(
-        @Header("AUTH-KEY") authKey: String,
-        @Body user: SignUpData
-    ): Response<JsonObject>
-
-    @PUT("users/update")
-    fun modifyUser(
-        @Header("X-API-KEY") apiKey: String,
-        @Body user: SignUpData
-    ): Call<ResponseResult>
-
     @POST("messages/create_message")
-    fun createMessage(
-        @Header("X-API-KEY") apiKey: String,
+    suspend fun createMessage(
+        @Header("authorization") token: String,
         @Body messageData: MessageData
-    ): Call<Void>
+    ): Response<Void>
 
     @GET("messages/search/{field}/{filter}")
-    fun getMessagesByFieldAndFilter(
-        @Header("X-API-KEY") apiKey: String,
+    suspend fun getMessagesByFieldAndFilter(
+        @Header("authorization") token: String,
         @Path("field") field: String,
         @Path("filter") filter: String
-    ): Call<List<MessageData>>
+    ): List<MessageData>
 
     @GET("custom/{collection}")
-    fun getCustomBsonDocuments(
-        @Header("X-API-KEY") apiKey: String,
+    suspend fun getCustomBsonDocuments(
+        @Header("authorization") token: String,
         @Path("collection") collection: String,
     ): Response<JsonObject>
 
     @POST("custom/create/{collection}")
-    fun createCustomData(
-        @Header("X-API-KEY") apiKey: String,
+    suspend fun createCustomData(
+        @Header("authorization") token: String,
         @Path("collection") collection: String,
         @Body document: Map<String, Any>
-    ): Call<Void>
+    ): Response<Void>
 
     @GET("custom/search/{collection}/{field}/{filter}")
-    fun getCustomBsonFilteredDocument(
-        @Header("X-API-KEY") apiKey: String,
+    suspend fun getCustomBsonFilteredDocument(
+        @Header("authorization") token: String,
         @Path("collection") collection: String,
         @Path("field") field: String,
         @Path("filter") filter: String
-    ): Call<List<Map<String, Any>>>
+    ): List<Map<String, Any>>
 
     @DELETE("custom/delete/{collection}/{field}/{filter}")
-    fun deleteCustomBsonDocument(
-        @Header("X-API-KEY") apiKey: String,
+    suspend fun deleteCustomBsonDocument(
+        @Header("authorization") token: String,
         @Path("collection") collection: String,
         @Path("field") field: String,
         @Path("filter") filter: String

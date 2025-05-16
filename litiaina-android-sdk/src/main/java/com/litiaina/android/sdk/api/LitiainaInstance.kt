@@ -32,10 +32,11 @@ object LitiainaInstance {
             remove("email")
             remove("password")
             remove("api_key")
+            remove("uid")
             apply()
         }
-        internalSharedPreferences = null
         WebSocketManager.close()
+        internalSharedPreferences = null
     }
 
     fun ensureInitialized() {
