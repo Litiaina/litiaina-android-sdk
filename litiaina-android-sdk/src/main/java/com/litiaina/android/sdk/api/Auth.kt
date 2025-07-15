@@ -2,6 +2,9 @@ package com.litiaina.android.sdk.api
 
 import android.util.Log
 import androidx.lifecycle.LifecycleOwner
+import com.google.gson.JsonParseException
+import com.google.gson.JsonParser
+import com.google.gson.JsonSyntaxException
 import com.litiaina.android.sdk.api.LitiainaInstance.ensureInitialized
 import com.litiaina.android.sdk.api.LitiainaInstance.getSharedPreferences
 import com.litiaina.android.sdk.api.LitiainaInstance.getUID
@@ -14,48 +17,92 @@ import com.litiaina.android.sdk.data.AccountData
 import com.litiaina.android.sdk.data.LoginRequest
 import com.litiaina.android.sdk.data.SignUpData
 import com.litiaina.android.sdk.data.UpdateAuthData
+import com.litiaina.android.sdk.interfaces.LoginResult
+import com.litiaina.android.sdk.interfaces.TwoFAResult
 import com.litiaina.android.sdk.retrofit.RetrofitInstance
 import com.litiaina.android.sdk.websocket.WebSocketManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import okio.IOException
 
 object Auth {
     fun login(
         email: String,
         password: String,
-        onResult: (Boolean) -> Unit
+        otp: String? = null,
+        onResult: (LoginResult) -> Unit
     ) {
         CoroutineScope(Dispatchers.IO).launch {
             val result = try {
-                val response = RetrofitInstance.authApi.login(LoginRequest(email, password))
-                if (response.isSuccessful && response.body()?.get("response")?.asBoolean == true) {
-                    val account = RetrofitInstance.authApi.getAuthAccount("Bearer ${response.body()?.get("token")?.asString}", LoginRequest(email, password))
+                val loginRequest = LoginRequest(email, password, otp)
+                val response = RetrofitInstance.authApi.login(loginRequest)
+                if (response.isSuccessful) {
+                    val body = response.body()
+                    val token = body?.get("token")?.asString
+                    val isValid = body?.get("response")?.asBoolean ?: false
+                    val account = RetrofitInstance.authApi.getAuthAccount("Bearer $token", loginRequest)
                     if (account.uid.isNotEmpty()) {
-                        getSharedPreferences()?.let { internalMemory ->
-                            with(internalMemory.edit()) {
-                                putString(AUTHORIZED_EMAIL, email)
-                                putString(AUTHORIZED_PASSWORD, password)
-                                putString(AUTHORIZED_TOKEN, response.body()?.get("token")?.asString)
-                                putString(AUTHORIZED_UID, account.uid)
-                                apply()
-                            }
-                            WebSocketManager.close()
-                            WebSocketManager.init(
-                                internalMemory.getString(AUTHORIZED_TOKEN,"").toString(),
-                                getUID(),
-                                internalMemory.getString(AUTHORIZED_UID,"").toString())
-                            WebSocketManager.connect()
-                            WebSocketManager.refresh()
+                        getSharedPreferences()?.edit()?.apply {
+                            putString(AUTHORIZED_EMAIL, email)
+                            putString(AUTHORIZED_PASSWORD, password)
+                            putString(AUTHORIZED_TOKEN, token)
+                            putString(AUTHORIZED_UID, account.uid)
+                            apply()
                         }
-                        true
-                    } else false
+                        WebSocketManager.run {
+                            close()
+                            init(token.orEmpty(), getUID(), account.uid)
+                            connect()
+                            refresh()
+                        }
+                        LoginResult.Success(isValid)
+                    } else
+                        LoginResult.Failure("Failed to retrieve account data")
                 } else
-                    false
+                    LoginResult.Success(false)
             } catch (e: Exception) {
-                Log.e("login", "Exception occurred: ${e.message}", e)
-                false
+                val message = when (e) {
+                    is IOException -> "Network error: ${e.message}"
+                    is JsonParseException -> "Response parsing error"
+                    else -> "Unexpected error: ${e.message}"
+                }
+                LoginResult.Failure(message)
+            }
+
+            withContext(Dispatchers.Main) {
+                onResult(result)
+            }
+        }
+    }
+
+    fun check2FAEnabledAccount(email: String, password: String, onResult: (TwoFAResult) -> Unit) {
+        CoroutineScope(Dispatchers.IO).launch {
+            val result = try {
+                val response = RetrofitInstance.authApi.verifyAccount2FA(
+                    LoginRequest(email = email, password = password)
+                )
+                if (response.isSuccessful) {
+                    val enabled = response.body()?.get("enabled")?.asBoolean ?: false
+                    TwoFAResult.Success(enabled)
+                } else {
+                    val errorMessage = try {
+                        val errorBody = response.errorBody()?.string()
+                        val json = JsonParser.parseString(errorBody).asJsonObject
+                        json["error"]?.asString ?: "Unknown error"
+                    } catch (e: Exception) {
+                        "Failed to parse error response"
+                    }
+                    TwoFAResult.Failure(errorMessage)
+                }
+            } catch (e: Exception) {
+                val message = when (e) {
+                    is IOException -> "Network error: ${e.message}"
+                    is JsonParseException -> "Response parsing error"
+                    else -> "Unexpected error: ${e.message}"
+                }
+                TwoFAResult.Failure(message)
             }
             withContext(Dispatchers.Main) {
                 onResult(result)

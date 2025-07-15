@@ -31,6 +31,11 @@ internal interface AuthApiService {
         @Body response: LoginRequest
     ): AccountData
 
+    @POST("auth/account/2fa")
+    suspend fun verifyAccount2FA(
+        @Body request: LoginRequest
+    ): Response<JsonObject>
+
     suspend fun checkUserAccount(
         @Header("authorization") token: String,
         @Body response: LoginRequest
