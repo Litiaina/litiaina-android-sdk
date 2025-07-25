@@ -18,6 +18,7 @@ import com.litiaina.android.sdk.data.LoginRequest
 import com.litiaina.android.sdk.data.SignUpData
 import com.litiaina.android.sdk.data.UpdateAuthData
 import com.litiaina.android.sdk.interfaces.LoginResult
+import com.litiaina.android.sdk.interfaces.ModifyResult
 import com.litiaina.android.sdk.interfaces.TwoFAResult
 import com.litiaina.android.sdk.retrofit.RetrofitInstance
 import com.litiaina.android.sdk.websocket.WebSocketManager
@@ -201,7 +202,7 @@ object Auth {
     fun modifyAuthenticatedUserData(
         newName: String? = null,
         newProfilePicture: String? = null,
-        onResult: (Boolean) -> Unit
+        onResult: (ModifyResult) -> Unit
     ) {
         CoroutineScope(Dispatchers.IO).launch {
             val modified = try {
@@ -217,12 +218,25 @@ object Auth {
                 if (response.isSuccessful) {
                     if (response.body()?.response == true) {
                         WebSocketManager.send(UPDATE_AUTHENTICATED_USER_DATA_REAL_TIME)
-                        true
-                    } else false
-                } else false
+                        ModifyResult.Success(true)
+                    } else ModifyResult.Failure("Failed to modify")
+                } else {
+                    val errorMessage = try {
+                        val errorBody = response.errorBody()?.string()
+                        val json = JsonParser.parseString(errorBody).asJsonObject
+                        json["error"]?.asString ?: "Unknown error"
+                    } catch (e: Exception) {
+                        "Failed to parse error response"
+                    }
+                    ModifyResult.Failure(errorMessage)
+                }
             } catch (e: Exception) {
-                Log.e("modifyAuthenticatedUserData", "Exception occurred: ${e.message}", e)
-                false
+                val message = when (e) {
+                    is IOException -> "Network error: ${e.message}"
+                    is JsonParseException -> "Response parsing error"
+                    else -> "Unexpected error: ${e.message}"
+                }
+                ModifyResult.Failure(message)
             }
 
             withContext(Dispatchers.Main) {

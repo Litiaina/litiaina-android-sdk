@@ -9,3 +9,8 @@ sealed class LoginResult {
     data class Success(val valid: Boolean) : LoginResult()
     data class Failure(val message: String) : LoginResult()
 }
+
+sealed class ModifyResult {
+    data class Success(val valid: Boolean) : ModifyResult()
+    data class Failure(val message: String) : ModifyResult()
+}
