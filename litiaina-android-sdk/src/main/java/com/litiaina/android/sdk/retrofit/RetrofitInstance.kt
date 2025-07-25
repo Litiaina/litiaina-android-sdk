@@ -1,5 +1,6 @@
 package com.litiaina.android.sdk.retrofit
 
+import com.litiaina.android.sdk.api.LitiainaInstance
 import com.litiaina.android.sdk.constant.Constants
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -9,7 +10,9 @@ import java.util.concurrent.TimeUnit
 
 internal object RetrofitInstance {
     private val loggingInterceptor = HttpLoggingInterceptor().apply {
-        level = HttpLoggingInterceptor.Level.HEADERS
+        level =
+            if (LitiainaInstance.enabledDebug) HttpLoggingInterceptor.Level.BASIC
+            else HttpLoggingInterceptor.Level.NONE
     }
     private val client = OkHttpClient.Builder()
         .connectTimeout(60, TimeUnit.SECONDS)

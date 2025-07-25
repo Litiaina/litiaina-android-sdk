@@ -10,6 +10,7 @@ object LitiainaInstance {
     private lateinit var uid: UUID
     private var internalSharedPreferences: SharedPreferences? = null
     private var initialized = false
+    internal var enabledDebug = false
 
     fun init(appContext: Context) {
         uid = UUID.randomUUID()
@@ -37,6 +38,10 @@ object LitiainaInstance {
         }
         WebSocketManager.close()
         internalSharedPreferences = null
+    }
+
+    fun enableDebug() {
+        enabledDebug = true
     }
 
     fun ensureInitialized() {
