@@ -23,8 +23,10 @@ import com.litiaina.android.sdk.retrofit.RetrofitInstance
 import com.litiaina.android.sdk.websocket.WebSocketManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import okio.IOException
 
 object Auth {
@@ -174,28 +176,21 @@ object Auth {
         onResult: (AccountData?) -> Unit
     ) {
         ensureInitialized()
-        WebSocketManager.messageLiveData.observe(lifecycleOwner) { message ->
-            if (!(message.contains(UPDATE_AUTHENTICATED_USER_DATA_REAL_TIME))) {
-                return@observe
-            }
-
-            if (message.contains("${getUID()}: $UPDATE_AUTHENTICATED_USER_DATA_REAL_TIME")) {
-                return@observe
-            }
-
+        WebSocketManager.authMessageLiveData.observe(lifecycleOwner) {
             CoroutineScope(Dispatchers.IO).launch {
                 val accountData: AccountData? = try {
                     RetrofitInstance.authApi.getAuthAccount(
-                        "Bearer ${getSharedPreferences()!!.getString(AUTHORIZED_TOKEN,"").toString()}",
+                        "Bearer ${getSharedPreferences()!!.getString(AUTHORIZED_TOKEN, "")}",
                         LoginRequest(
-                            getSharedPreferences()!!.getString(AUTHORIZED_EMAIL,"").toString(),
-                            getSharedPreferences()!!.getString(AUTHORIZED_PASSWORD,"").toString()
+                            getSharedPreferences()!!.getString(AUTHORIZED_EMAIL, "").orEmpty(),
+                            getSharedPreferences()!!.getString(AUTHORIZED_PASSWORD, "").orEmpty()
                         )
                     )
                 } catch (e: Exception) {
                     Log.e("retrieveAuthenticatedUserDataRealtime", "Exception occurred: ${e.message}", e)
                     null
                 }
+
                 withContext(Dispatchers.Main) {
                     onResult(accountData)
                 }

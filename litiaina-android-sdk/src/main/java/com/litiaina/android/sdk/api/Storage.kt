@@ -73,23 +73,14 @@ object Storage {
         onResult: (List<FileDetailData>?) -> Unit
     ) {
         ensureInitialized()
-
-        WebSocketManager.messageLiveData.observe(lifecycleOwner) { message ->
-            if (!(message.contains(UPDATE_FILE_LIST_REAL_TIME))) {
-                return@observe
-            }
-
-            if (message.contains("${getUID()}: $UPDATE_FILE_LIST_REAL_TIME")) {
-                return@observe
-            }
-
+        WebSocketManager.fileListMessageLiveData.observe(lifecycleOwner) {
             if (isFetching) return@observe
 
             isFetching = true
             CoroutineScope(Dispatchers.IO).launch {
                 val files = try {
                     getFilesListAsync(
-                        apiKey = "Bearer ${getSharedPreferences()!!.getString(AUTHORIZED_TOKEN,"").toString()}",
+                        apiKey = "Bearer ${getSharedPreferences()!!.getString(AUTHORIZED_TOKEN, "").toString()}",
                         uid = getSharedPreferences()?.getString(AUTHORIZED_UID, "").orEmpty(),
                         path = path ?: ""
                     )

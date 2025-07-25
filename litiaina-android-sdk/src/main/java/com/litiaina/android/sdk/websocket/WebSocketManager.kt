@@ -5,10 +5,10 @@ import android.os.Looper
 import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
-import com.litiaina.android.sdk.constant.Constants
 import com.litiaina.android.sdk.constant.Constants.MAX_RECONNECT_ATTEMPTS
 import com.litiaina.android.sdk.constant.Constants.PING_INTERVAL_MILLIS
 import com.litiaina.android.sdk.constant.Constants.RECONNECT_DELAY
+import com.litiaina.android.sdk.constant.Constants.SERVER_WEBSOCKET_URL
 import com.litiaina.android.sdk.constant.Constants.UPDATE_FILE_LIST_REAL_TIME
 import com.litiaina.android.sdk.constant.Constants.UPDATE_AUTHENTICATED_USER_DATA_REAL_TIME
 import okhttp3.OkHttpClient
@@ -21,10 +21,15 @@ import java.io.IOException
 import java.util.concurrent.atomic.AtomicInteger
 
 internal object WebSocketManager {
+
     private var webSocket: WebSocket? = null
     private val client = OkHttpClient.Builder().build()
-    private val _messageLiveData = MutableLiveData<String>()
-    val messageLiveData: LiveData<String> get() = _messageLiveData
+
+    private val _authMessageLiveData = MutableLiveData<Unit>()
+    val authMessageLiveData: LiveData<Unit> get() = _authMessageLiveData
+
+    private val _fileListMessageLiveData = MutableLiveData<Unit>()
+    val fileListMessageLiveData: LiveData<Unit> get() = _fileListMessageLiveData
 
     private val reconnectAttempts = AtomicInteger(0)
     private val messageQueue = mutableListOf<String>()
@@ -56,7 +61,7 @@ internal object WebSocketManager {
         webSocket?.close(1000, "Reconnecting")
 
         apiKey?.let { key ->
-            val url = "${Constants.SERVER_WEBSOCKET_URL}?uid=$uid&channel=$channel"
+            val url = "$SERVER_WEBSOCKET_URL?uid=$uid&channel=$channel"
             val request = Request.Builder()
                 .url(url)
                 .addHeader("authorization", "Bearer $key")
@@ -72,7 +77,7 @@ internal object WebSocketManager {
                 }
 
                 override fun onMessage(webSocket: WebSocket, text: String) {
-                    _messageLiveData.postValue(text)
+                    dispatchMessage(text)
                 }
 
                 override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
@@ -83,12 +88,10 @@ internal object WebSocketManager {
                 }
 
                 override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-                    webSocket.cancel()
                     connected = false
                     stopPing()
 
                     if (response?.code == 401) {
-                        Log.e("WebSocketManager", "Unauthorized. Check API key. No further reconnection attempts.")
                         reconnectionValid = false
                         return
                     }
@@ -101,21 +104,27 @@ internal object WebSocketManager {
         }
     }
 
+    private fun dispatchMessage(text: String) {
+        when {
+            text.contains(UPDATE_AUTHENTICATED_USER_DATA_REAL_TIME) -> _authMessageLiveData.postValue(Unit)
+            text.contains(UPDATE_FILE_LIST_REAL_TIME) -> _fileListMessageLiveData.postValue(Unit)
+            else -> Log.w("WebSocketManager", "Unhandled message: $text")
+        }
+    }
+
     private fun attemptReconnect() {
         val currentAttempts = reconnectAttempts.incrementAndGet()
         if (currentAttempts <= MAX_RECONNECT_ATTEMPTS) {
             val delay = (RECONNECT_DELAY * currentAttempts).coerceAtMost(30L)
+            Log.d("WebSocketManager", "Reconnecting... Attempt $currentAttempts in $delay seconds")
             Thread.sleep(delay * 1000)
-
             connect()
         } else reconnectionValid = false
     }
 
     fun send(message: String) {
-        if (connected && webSocket != null) {
-            webSocket?.send(message)
-            _messageLiveData.postValue(message)
-        } else messageQueue.add(message)
+        if (connected && webSocket != null) webSocket?.send(message)
+        else messageQueue.add(message)
     }
 
     fun close() {
@@ -139,7 +148,10 @@ internal object WebSocketManager {
     private fun startPing() {
         pingRunnable = object : Runnable {
             override fun run() {
-                if (connected && webSocket != null) webSocket?.send("ping")
+                if (connected && webSocket != null) {
+                    Log.d("WebSocketManager", "Ping sent")
+                    webSocket?.send("ping")
+                }
                 pingHandler.postDelayed(this, PING_INTERVAL_MILLIS)
             }
         }
@@ -156,6 +168,4 @@ internal object WebSocketManager {
         send(UPDATE_FILE_LIST_REAL_TIME)
         send(UPDATE_AUTHENTICATED_USER_DATA_REAL_TIME)
     }
-
-    fun isConnected(): Boolean = connected
 }
