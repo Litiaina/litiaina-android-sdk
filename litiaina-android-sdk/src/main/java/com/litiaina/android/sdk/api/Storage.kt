@@ -4,7 +4,6 @@ import android.util.Log
 import androidx.lifecycle.LifecycleOwner
 import com.litiaina.android.sdk.api.LitiainaInstance.ensureInitialized
 import com.litiaina.android.sdk.api.LitiainaInstance.getSharedPreferences
-import com.litiaina.android.sdk.api.LitiainaInstance.getUID
 import com.litiaina.android.sdk.constant.Constants.AUTHORIZED_TOKEN
 import com.litiaina.android.sdk.constant.Constants.AUTHORIZED_EMAIL
 import com.litiaina.android.sdk.constant.Constants.AUTHORIZED_UID
@@ -16,6 +15,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import okhttp3.MultipartBody
 
 object Storage {
     @Volatile
@@ -155,6 +155,34 @@ object Storage {
 
             withContext(Dispatchers.Main) {
                 onResult(modified)
+            }
+        }
+    }
+
+    fun upload(
+        path: String? = null,
+        multipartBody: MultipartBody.Part,
+        onResult: (Boolean) -> Unit
+    ) {
+        CoroutineScope(Dispatchers.IO).launch {
+            val uploaded = try {
+                val response = RetrofitInstance.storageApi.uploadFile(
+                    token = "Bearer ${getSharedPreferences()!!.getString(AUTHORIZED_TOKEN,"").toString()}",
+                    uid = getSharedPreferences()!!.getString(AUTHORIZED_EMAIL,"").toString(),
+                    path = path,
+                    file = multipartBody
+                )
+                if (response.isSuccessful) {
+                    WebSocketManager.send(UPDATE_FILE_LIST_REAL_TIME)
+                    true
+                } else false
+            } catch (e: Exception) {
+                Log.e("Upload", "Exception occurred: ${e.message}", e)
+                false
+            }
+
+            withContext(Dispatchers.Main) {
+                onResult(uploaded)
             }
         }
     }

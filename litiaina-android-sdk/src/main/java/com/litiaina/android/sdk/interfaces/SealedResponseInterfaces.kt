@@ -14,3 +14,8 @@ sealed class ModifyResult {
     data class Success(val valid: Boolean) : ModifyResult()
     data class Failure(val message: String) : ModifyResult()
 }
+
+sealed class PushNotificationResult {
+    data class Success(val message: String) : PushNotificationResult()
+    data class Failure(val message: String) : PushNotificationResult()
+}

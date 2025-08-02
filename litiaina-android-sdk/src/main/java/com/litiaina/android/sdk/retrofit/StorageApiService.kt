@@ -48,6 +48,7 @@ internal interface StorageApiService {
         @Query("total_chunks") totalChunks: Int,
         @Query("original_filename") originalFilename: String?,
         @Query("mime_type") mimeType: String?,
+        @Query("checksum") checksum: String?,
         @Part file: MultipartBody.Part
     ): Response<ResponseBody>
 

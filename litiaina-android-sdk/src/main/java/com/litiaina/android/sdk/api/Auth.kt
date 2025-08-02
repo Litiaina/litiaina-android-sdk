@@ -24,10 +24,8 @@ import com.litiaina.android.sdk.retrofit.RetrofitInstance
 import com.litiaina.android.sdk.websocket.WebSocketManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeout
 import okio.IOException
 
 object Auth {
