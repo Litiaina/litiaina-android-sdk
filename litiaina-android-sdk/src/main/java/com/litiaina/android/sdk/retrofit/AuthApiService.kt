@@ -4,6 +4,7 @@ import com.google.gson.JsonObject
 import com.litiaina.android.sdk.data.AccountData
 import com.litiaina.android.sdk.data.LoginRequest
 import com.litiaina.android.sdk.data.ResponseResult
+import com.litiaina.android.sdk.data.RetrieveUIDRequest
 import com.litiaina.android.sdk.data.SignUpData
 import com.litiaina.android.sdk.data.UpdateAuthData
 import com.litiaina.android.sdk.data.UserData
@@ -36,10 +37,11 @@ internal interface AuthApiService {
         @Body request: LoginRequest
     ): Response<JsonObject>
 
-    suspend fun checkUserAccount(
+    @POST("/auth/retrieve/uid")
+    suspend fun getUserUID(
         @Header("authorization") token: String,
-        @Body response: LoginRequest
-    ): Boolean
+        @Body response: RetrieveUIDRequest
+    ): Response<JsonObject>
 
     @POST("auth/login")
     suspend fun login(

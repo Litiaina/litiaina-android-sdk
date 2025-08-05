@@ -8,6 +8,7 @@ import com.google.gson.JsonSyntaxException
 import com.litiaina.android.sdk.api.LitiainaInstance.ensureInitialized
 import com.litiaina.android.sdk.api.LitiainaInstance.getSharedPreferences
 import com.litiaina.android.sdk.api.LitiainaInstance.getUID
+import com.litiaina.android.sdk.api.Notification.parseErrorMessage
 import com.litiaina.android.sdk.constant.Constants.AUTHORIZED_TOKEN
 import com.litiaina.android.sdk.constant.Constants.AUTHORIZED_EMAIL
 import com.litiaina.android.sdk.constant.Constants.AUTHORIZED_PASSWORD
@@ -15,10 +16,13 @@ import com.litiaina.android.sdk.constant.Constants.AUTHORIZED_UID
 import com.litiaina.android.sdk.constant.Constants.UPDATE_AUTHENTICATED_USER_DATA_REAL_TIME
 import com.litiaina.android.sdk.data.AccountData
 import com.litiaina.android.sdk.data.LoginRequest
+import com.litiaina.android.sdk.data.RetrieveUIDRequest
 import com.litiaina.android.sdk.data.SignUpData
 import com.litiaina.android.sdk.data.UpdateAuthData
 import com.litiaina.android.sdk.interfaces.LoginResult
 import com.litiaina.android.sdk.interfaces.ModifyResult
+import com.litiaina.android.sdk.interfaces.RemoveDeviceTokenResult
+import com.litiaina.android.sdk.interfaces.RetrieveUIDByEmailResult
 import com.litiaina.android.sdk.interfaces.TwoFAResult
 import com.litiaina.android.sdk.retrofit.RetrofitInstance
 import com.litiaina.android.sdk.websocket.WebSocketManager
@@ -242,4 +246,35 @@ object Auth {
             }
         }
     }
+
+    fun getUIDByEmail(
+        email: String,
+        onResult: (RetrieveUIDByEmailResult) -> Unit
+    ) {
+        ensureInitialized()
+        CoroutineScope(Dispatchers.IO).launch {
+            val result = try {
+                val response = RetrofitInstance.authApi.getUserUID(
+                    "Bearer ${getSharedPreferences()!!.getString(AUTHORIZED_TOKEN,"").toString()}",
+                    RetrieveUIDRequest(
+                        email = email,
+                    )
+                )
+                if (response.isSuccessful) RetrieveUIDByEmailResult.Success(response.body()?.get("result")?.asString ?: "Failed to retrieve UID")
+                else RetrieveUIDByEmailResult.Failure("Failed: ${parseErrorMessage(response.errorBody()?.string())}")
+            } catch (e: Exception) {
+                RetrieveUIDByEmailResult.Failure("Exception: ${e.localizedMessage}")
+            }
+            withContext(Dispatchers.Main) {
+                onResult(result)
+            }
+        }
+    }
+
+    fun isUserAuthenticated(): Boolean {
+        return getSharedPreferences()?.getString(AUTHORIZED_TOKEN, "").isNullOrBlank().not() &&
+                getSharedPreferences()?.getString(AUTHORIZED_EMAIL, "").isNullOrBlank().not() &&
+                getSharedPreferences()?.getString(AUTHORIZED_PASSWORD, "").isNullOrBlank().not()
+    }
+
 }

@@ -28,6 +28,8 @@ object LitiainaInstance {
         return uid.toString()
     }
 
+    fun isInitialized(): Boolean = initialized && internalSharedPreferences != null
+
     fun destroy(){
         with(internalSharedPreferences!!.edit()) {
             remove("email")
@@ -37,7 +39,6 @@ object LitiainaInstance {
             apply()
         }
         WebSocketManager.close()
-        internalSharedPreferences = null
     }
 
     fun enableDebug() {

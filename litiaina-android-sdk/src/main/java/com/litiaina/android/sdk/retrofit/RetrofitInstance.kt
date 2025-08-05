@@ -11,7 +11,7 @@ import java.util.concurrent.TimeUnit
 internal object RetrofitInstance {
     private val loggingInterceptor = HttpLoggingInterceptor().apply {
         level =
-            if (LitiainaInstance.enabledDebug) HttpLoggingInterceptor.Level.BASIC
+            if (LitiainaInstance.enabledDebug) HttpLoggingInterceptor.Level.BODY
             else HttpLoggingInterceptor.Level.NONE
     }
     private val client = OkHttpClient.Builder()
